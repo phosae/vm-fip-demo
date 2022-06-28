@@ -1,0 +1,6 @@
+apiVersion: qvm.qiniu.com/v1alpha1
+kind: Qvm
+metadata:
+  name: qvm-sample
+spec:
+  # TODO(user): Add fields here

@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - qvm.qiniu.com
+  resources:
+  - qvms
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - qvm.qiniu.com
+  resources:
+  - qvms/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - qvm.qiniu.com
+  resources:
+  - qvms/status
+  verbs:
+  - get
+  - patch
+  - update

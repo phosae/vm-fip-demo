@@ -1,0 +1,17 @@
+domain: qiniu.com
+layout:
+- go.kubebuilder.io/v3
+multigroup: true
+projectName: qvirt
+repo: qiniu.com/qvirt
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: qiniu.com
+  group: qvm
+  kind: Qvm
+  path: qiniu.com/qvirt/apis/qvm/v1alpha1
+  version: v1alpha1
+version: "3"
