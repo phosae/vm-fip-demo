@@ -16,12 +16,15 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     - description: Qvm Phase
-      jsonPath: .spec.status.phase
+      jsonPath: .status.phase
       name: PHASE
       type: string
     - description: Node Name
-      jsonPath: .spec.status.nodeName
+      jsonPath: .status.nodeName
       name: NODENAME
       type: string
     - description: Floating IPs

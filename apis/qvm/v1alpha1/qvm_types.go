@@ -36,8 +36,9 @@ type QvmStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +genclient
-// +kubebuilder:printcolumn:name="PHASE",type="string",JSONPath=".spec.status.phase",description="Qvm Phase"
-// +kubebuilder:printcolumn:name="NODENAME",type="string",JSONPath=".spec.status.nodeName",description="Node Name"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
+// +kubebuilder:printcolumn:name="PHASE",type="string",JSONPath=".status.phase",description="Qvm Phase"
+// +kubebuilder:printcolumn:name="NODENAME",type="string",JSONPath=".status.nodeName",description="Node Name"
 // +kubebuilder:printcolumn:name="EXTERNAL-IPs",type="string",JSONPath=".spec.floatingIPs",description="Floating IPs"
 
 // Qvm is the Schema for the qvms API
