@@ -56,18 +56,15 @@ func main() {
 		return kcli.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
 	}
 
-	qvmInf.AddEventHandler(&cache.FilteringResourceEventHandler{
-		FilterFunc: nil,
-		Handler: cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				pxy.SyncRules()
-			},
-			UpdateFunc: func(oldObj, newObj interface{}) {
-				pxy.SyncRules()
-			},
-			DeleteFunc: func(obj interface{}) {
-				pxy.SyncRules()
-			},
+	qvmInf.AddEventHandler(&cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			pxy.SyncRules()
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			pxy.SyncRules()
+		},
+		DeleteFunc: func(obj interface{}) {
+			pxy.SyncRules()
 		},
 	})
 
