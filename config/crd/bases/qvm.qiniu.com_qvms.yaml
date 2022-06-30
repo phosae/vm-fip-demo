@@ -16,6 +16,14 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - description: Qvm Phase
+      jsonPath: .spec.status.phase
+      name: PHASE
+      type: string
+    - description: Node Name
+      jsonPath: .spec.status.nodeName
+      name: NODENAME
+      type: string
     - description: Floating IPs
       jsonPath: .spec.floatingIPs
       name: EXTERNAL-IPs
