@@ -8,7 +8,6 @@ require (
 	k8s.io/apimachinery v0.23.5
 	k8s.io/client-go v12.0.0+incompatible
 	kubevirt.io/api v0.54.0
-	kubevirt.io/client-go v0.54.0
 	sigs.k8s.io/controller-runtime v0.11.2
 )
 

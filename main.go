@@ -6,18 +6,13 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
-
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	virtv1 "kubevirt.io/api/core/v1"
-	virtCli "kubevirt.io/client-go/kubecli"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	virtv1 "kubevirt.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -34,17 +29,13 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(virtv1.AddToScheme(scheme))
 
 	utilruntime.Must(qvmv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
 func main() {
-	var vm virtv1.VirtualMachine
-	var vmi virtv1.VirtualMachineInstance
-	var c virtCli.KubevirtClient
-	fmt.Println(vm, vmi, c)
-
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
