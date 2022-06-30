@@ -165,14 +165,18 @@ func (p *Proxy) syncIngressNAT() {
 		for _, eip := range externalIPs {
 			mpChain := ipMappingChain(eip, internalNodeIP)
 			log.Printf("ensure nat rules for vm %s/%s\n", vm.Namespace, vm.Name)
-			p.iptables.EnsureRule(iptableutil.Append, iptableutil.TableNAT, qvirtMappingChain,
+			log.Printf("try add entry %s to %s...\n", eip, qvirtMappingChain)
+			ok, err := p.iptables.EnsureRule(iptableutil.Append, iptableutil.TableNAT, qvirtMappingChain,
 				"-m", "comment", "--comment", fmt.Sprintf(`"%s/%s external IP"`, vm.Namespace, vm.Name),
 				"-d", net.ParseIP(eip).String(),
 				"-j", string(mpChain),
 			)
-			p.iptables.EnsureRule(iptableutil.Append, iptableutil.TableNAT, mpChain,
+			log.Printf("ret for %s to node/%s, ok:%v, err:%v", eip, internalNodeIP, ok, err)
+			log.Printf("try add DNAT from %s to %s...\n", eip, internalNodeIP)
+			ok, err = p.iptables.EnsureRule(iptableutil.Append, iptableutil.TableNAT, mpChain,
 				"-j", "DNAT", "--to-destination", net.ParseIP(internalNodeIP).String(),
 			)
+			log.Printf("ret for DNAT %s to node/%s, ok:%v, err:%v", eip, internalNodeIP, ok, err)
 		}
 	}
 }
