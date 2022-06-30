@@ -3773,10 +3773,6 @@ spec:
                 type: string
               phase:
                 type: string
-            required:
-            - network
-            - nodeName
-            - phase
             type: object
         type: object
     served: true

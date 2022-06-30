@@ -28,9 +28,9 @@ type QvmNetworkStatus struct {
 
 // QvmStatus defines the observed state of Qvm
 type QvmStatus struct {
-	NodeName string           `json:"nodeName"`
-	Phase    string           `json:"phase"`
-	Network  QvmNetworkStatus `json:"network"`
+	NodeName string           `json:"nodeName,omitempty"`
+	Phase    string           `json:"phase,omitempty"`
+	Network  QvmNetworkStatus `json:"network,omitempty"`
 }
 
 // +kubebuilder:object:root=true
