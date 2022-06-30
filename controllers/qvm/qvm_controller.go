@@ -99,6 +99,8 @@ func (r *QvmReconciler) updateStatus(ctx context.Context, qvm *qvmv1alpha1.Qvm, 
 	old := client.MergeFrom(qvm.DeepCopy())
 	qvm.Status.Phase = string(vmi.Status.Phase)
 	qvm.Status.NodeName = vmi.Status.NodeName
+	lg := log.FromContext(ctx)
+	lg.Info("update status", "phase", qvm.Status.Phase, "nodeName", qvm.Status.NodeName)
 	return ctrl.Result{}, r.Patch(ctx, qvm, old)
 }
 
