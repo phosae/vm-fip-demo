@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"log"
 	"net"
@@ -42,20 +44,16 @@ func main() {
 
 	kubeconfig := config.GetConfigOrDie()
 
-	cli := versioned.NewForConfigOrDie(kubeconfig)
+	vcli := versioned.NewForConfigOrDie(kubeconfig)
+	kcli := kubernetes.NewForConfigOrDie(kubeconfig)
 
-	sharedInformer := qvirtinformers.NewSharedInformerFactory(cli, 30*time.Second)
+	sharedInformer := qvirtinformers.NewSharedInformerFactory(vcli, 30*time.Second)
 	qvmInf := sharedInformer.Qvm().V1alpha1().Qvms().Informer()
 	pxy.QvmLister = sharedInformer.Qvm().V1alpha1().Qvms().Lister()
 	pxy.InformerSynced = qvmInf.HasSynced
 
-	nodeInf, err := sharedInformer.ForResource(corev1.SchemeGroupVersion.WithResource("Node"))
-	if err != nil {
-		log.Fatal(err)
-	}
 	pxy.NodeGetter = func(name string) (*corev1.Node, error) {
-		obj, err := nodeInf.Lister().Get(name)
-		return obj.(*corev1.Node), err
+		return kcli.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
 	}
 
 	qvmInf.AddEventHandler(&cache.FilteringResourceEventHandler{
