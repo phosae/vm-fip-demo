@@ -4,9 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
 	"log"
 	"net"
 	"time"
@@ -18,8 +15,11 @@ import (
 	iptableutil "qiniu.com/qvirt/pkg/iptables"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/exec"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -74,12 +74,13 @@ func main() {
 	execer := exec.New()
 	pxy.iptables = iptableutil.New(execer, iptableutil.ProtocolIPv4)
 
+	go qvmInf.Run(ctx.Done())
 	go pxy.Run(ctx.Done())
 	<-ctx.Done()
 }
 
 func (p *Proxy) Run(stopCh <-chan struct{}) {
-	if !cache.WaitForNamedCacheSync("service config", stopCh, p.InformerSynced) {
+	if !cache.WaitForNamedCacheSync("qvm config", stopCh, p.InformerSynced) {
 		return
 	}
 	p.SyncRules()
