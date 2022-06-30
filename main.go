@@ -40,9 +40,10 @@ func init() {
 }
 
 func main() {
-	var vm virtv1.VirtualMachineInstance
+	var vm virtv1.VirtualMachine
+	var vmi virtv1.VirtualMachineInstance
 	var c virtCli.KubevirtClient
-	fmt.Println(vm, c)
+	fmt.Println(vm, vmi, c)
 
 	var metricsAddr string
 	var enableLeaderElection bool

@@ -15,7 +15,12 @@ spec:
     singular: qvm
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Floating IPs
+      jsonPath: .spec.floatingIPs
+      name: EXTERNAL-IPs
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Qvm is the Schema for the qvms API
@@ -3738,6 +3743,32 @@ spec:
             type: object
           status:
             description: QvmStatus defines the observed state of Qvm
+            properties:
+              network:
+                properties:
+                  ingressRoutes:
+                    items:
+                      properties:
+                        nodeName:
+                          type: string
+                        ready:
+                          type: boolean
+                      required:
+                      - nodeName
+                      - ready
+                      type: object
+                    type: array
+                required:
+                - ingressRoutes
+                type: object
+              nodeName:
+                type: string
+              phase:
+                type: string
+            required:
+            - network
+            - nodeName
+            - phase
             type: object
         type: object
     served: true

@@ -17,13 +17,26 @@ type QvmSpec struct {
 	FloatingIPs []string `json:"floatingIPs"`
 }
 
-// QvmStatus defines the observed state of Qvm
-type QvmStatus struct {
+type IngressRoute struct {
+	NodeName string `json:"nodeName"`
+	Ready    bool   `json:"ready"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+genclient
+type QvmNetworkStatus struct {
+	IngressRoutes []IngressRoute `json:"ingressRoutes"`
+}
+
+// QvmStatus defines the observed state of Qvm
+type QvmStatus struct {
+	NodeName string           `json:"nodeName"`
+	Phase    string           `json:"phase"`
+	Network  QvmNetworkStatus `json:"network"`
+}
+
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +genclient
+// +kubebuilder:printcolumn:name="EXTERNAL-IPs",type="string",JSONPath=".spec.floatingIPs",description="Floating IPs"
 
 // Qvm is the Schema for the qvms API
 type Qvm struct {
