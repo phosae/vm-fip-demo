@@ -72,7 +72,11 @@ func (r *QvmReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 func (r *QvmReconciler) createVM(ctx context.Context, qvm *qvmv1alpha1.Qvm) (ctrl.Result, error) {
 	var vm virtv1.VirtualMachine
 	vm.Spec = qvm.Spec.VM
-	vm.ObjectMeta = qvm.ObjectMeta
+	vm.Name = qvm.Name
+	vm.Namespace = qvm.Namespace
+	vm.Labels = qvm.Labels
+	vm.Annotations = qvm.Annotations
+
 	err := controllerutil.SetOwnerReference(qvm, &vm, r.Scheme)
 	if err != nil {
 		return ctrl.Result{}, err
