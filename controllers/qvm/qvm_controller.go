@@ -96,12 +96,11 @@ func (r *QvmReconciler) createVM(ctx context.Context, qvm *qvmv1alpha1.Qvm) (ctr
 }
 
 func (r *QvmReconciler) updateStatus(ctx context.Context, qvm *qvmv1alpha1.Qvm, vm *virtv1.VirtualMachine, vmi *virtv1.VirtualMachineInstance) (ctrl.Result, error) {
-	old := client.MergeFrom(qvm.DeepCopy())
 	qvm.Status.Phase = string(vmi.Status.Phase)
 	qvm.Status.NodeName = vmi.Status.NodeName
 	lg := log.FromContext(ctx)
 	lg.Info("update status", "phase", qvm.Status.Phase, "nodeName", qvm.Status.NodeName)
-	return ctrl.Result{}, r.Patch(ctx, qvm, old)
+	return ctrl.Result{}, r.Status().Update(ctx, qvm)
 }
 
 // SetupWithManager sets up the controller with the Manager.
