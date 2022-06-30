@@ -3766,8 +3766,6 @@ spec:
                       - ready
                       type: object
                     type: array
-                required:
-                - ingressRoutes
                 type: object
               nodeName:
                 type: string

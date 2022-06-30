@@ -23,14 +23,14 @@ type IngressRoute struct {
 }
 
 type QvmNetworkStatus struct {
-	IngressRoutes []IngressRoute `json:"ingressRoutes"`
+	IngressRoutes []IngressRoute `json:"ingressRoutes,omitempty"`
 }
 
 // QvmStatus defines the observed state of Qvm
 type QvmStatus struct {
-	NodeName string           `json:"nodeName,omitempty"`
-	Phase    string           `json:"phase,omitempty"`
-	Network  QvmNetworkStatus `json:"network,omitempty"`
+	NodeName string            `json:"nodeName,omitempty"`
+	Phase    string            `json:"phase,omitempty"`
+	Network  *QvmNetworkStatus `json:"network,omitempty"`
 }
 
 // +kubebuilder:object:root=true
