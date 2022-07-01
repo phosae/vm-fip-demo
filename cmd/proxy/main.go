@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"net"
+	"os"
+	qvmv1alpha1 "qiniu.com/qvirt/client/versioned/typed/qvm/v1alpha1"
 	"strings"
 	"time"
 
@@ -35,14 +38,17 @@ const (
 )
 
 var doDelete bool
+var nodeName string
 
 func init() {
 	flag.BoolVar(&doDelete, "delete", false, "whether do cleanup IPTable rules")
+	flag.StringVar(&nodeName, "node", "", "node of this proxy running")
 }
 
 type Proxy struct {
 	QvmLister  qvirtlister.QvmLister
 	NodeGetter func(name string) (*corev1.Node, error)
+	QvmCli     qvmv1alpha1.QvmV1alpha1Interface
 
 	iptables       iptableutil.Interface
 	InformerSynced cache.InformerSynced
@@ -50,6 +56,10 @@ type Proxy struct {
 
 func main() {
 	flag.Parse()
+	if nodeName == "" {
+		nodeName, _ = os.Hostname()
+	}
+
 	ctx := controllerruntime.SetupSignalHandler()
 	var pxy = &Proxy{iptables: iptableutil.New(exec.New(), iptableutil.ProtocolIPv4)}
 
@@ -73,6 +83,7 @@ func main() {
 	qvmInf := sharedInformer.Qvm().V1alpha1().Qvms().Informer()
 	pxy.QvmLister = sharedInformer.Qvm().V1alpha1().Qvms().Lister()
 	pxy.InformerSynced = qvmInf.HasSynced
+	pxy.QvmCli = vcli.QvmV1alpha1()
 
 	pxy.NodeGetter = func(name string) (*corev1.Node, error) {
 		return kcli.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
@@ -165,7 +176,7 @@ func (p *Proxy) syncIngressNAT() {
 		var internalPodIP string
 		var externalIPs = vm.Spec.FloatingIPs
 
-		if len(vm.Status.Network.Interfaces) > 0 {
+		if vm.Status.Network != nil && len(vm.Status.Network.Interfaces) > 0 {
 			internalPodIP = vm.Status.Network.Interfaces[0].IP
 		}
 
@@ -174,10 +185,12 @@ func (p *Proxy) syncIngressNAT() {
 			continue
 		}
 
+		var encounteredError bool
 		for _, eip := range externalIPs {
 			mpChain := ipMappingChain(eip, internalPodIP)
 			ok, err := p.iptables.EnsureChain(iptableutil.TableNAT, mpChain)
 			log.Printf("ensure DNAT rule/%s for vm %s/%s, ok: %v, err: %v\n", mpChain, vm.Namespace, vm.Name, ok, err)
+			encounteredError = !ok
 
 			log.Printf("ensure nat rules for vm %s/%s\n", vm.Namespace, vm.Name)
 			log.Printf("firstly set KUBE-MARK-MASK for SNAT, %s/%s\n", vm.Namespace, vm.Name)
@@ -187,6 +200,7 @@ func (p *Proxy) syncIngressNAT() {
 				"!", "-s", "10.233.64.0/18",
 				"-j", "KUBE-MARK-MASQ",
 			)
+			encounteredError = !ok
 			log.Printf("ret for set KUBE-MARK-MASK for %s/%s, ok: %v, err: %v\n", vm.Namespace, vm.Name, ok, err)
 			log.Printf("set jump QVIRT-MP-XXX for DNAT %s/%s\n", vm.Namespace, vm.Name)
 			ok, err = p.iptables.EnsureRule(iptableutil.Append, iptableutil.TableNAT, qvirtMappingChain,
@@ -194,13 +208,22 @@ func (p *Proxy) syncIngressNAT() {
 				"-d", net.ParseIP(eip).String(),
 				"-j", string(mpChain),
 			)
+			encounteredError = !ok
 			log.Printf("ret for %s to pod/%s, ok:%v, err:%v", eip, internalPodIP, ok, err)
 			log.Printf("try add DNAT from %s to %s...\n", eip, internalPodIP)
 			ok, err = p.iptables.EnsureRule(iptableutil.Append, iptableutil.TableNAT, mpChain,
 				"-j", "DNAT", "--to-destination", net.ParseIP(internalPodIP).String(),
 			)
+			encounteredError = !ok
 			log.Printf("ret for DNAT %s to pod/%s, ok:%v, err:%v", eip, internalPodIP, ok, err)
 		}
+
+		vmToUpdate := vm.DeepCopy()
+		vmToUpdate.Status.Network.IngressRoutes = append(vmToUpdate.Status.Network.IngressRoutes, v1alpha1.IngressRoute{
+			NodeName: nodeName,
+			Ready:    !encounteredError,
+		})
+		p.QvmCli.Qvms(vm.Namespace).UpdateStatus(context.TODO(), vmToUpdate, metav1.UpdateOptions{})
 	}
 }
 

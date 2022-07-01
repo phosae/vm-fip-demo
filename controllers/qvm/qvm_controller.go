@@ -98,6 +98,9 @@ func (r *QvmReconciler) createVM(ctx context.Context, qvm *qvmv1alpha1.Qvm) (ctr
 func (r *QvmReconciler) updateStatus(ctx context.Context, qvm *qvmv1alpha1.Qvm, vm *virtv1.VirtualMachine, vmi *virtv1.VirtualMachineInstance) (ctrl.Result, error) {
 	qvm.Status.Phase = string(vmi.Status.Phase)
 	qvm.Status.NodeName = vmi.Status.NodeName
+	if qvm.Status.Network == nil {
+		qvm.Status.Network = &qvmv1alpha1.QvmNetworkStatus{}
+	}
 	qvm.Status.Network.Interfaces = vmi.Status.Interfaces
 
 	lg := log.FromContext(ctx)
