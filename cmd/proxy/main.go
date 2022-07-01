@@ -94,7 +94,10 @@ func main() {
 			pxy.SyncRules()
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			pxy.SyncRules()
+			oqvm, nqvm := oldObj.(*v1alpha1.Qvm), newObj.(*v1alpha1.Qvm)
+			if oqvm.Generation != nqvm.Generation {
+				pxy.SyncRules()
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			pxy.SyncRules()

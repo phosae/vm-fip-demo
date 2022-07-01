@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -113,6 +114,7 @@ func (r *QvmReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&qvmv1alpha1.Qvm{}).
 		Owns(&virtv1.VirtualMachine{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Watches(&source.Kind{Type: &virtv1.VirtualMachineInstance{}}, &handler.Funcs{
 			UpdateFunc: func(e event.UpdateEvent, q workqueue.RateLimitingInterface) {
 				_ = (e.ObjectOld).(*virtv1.VirtualMachineInstance)
