@@ -222,10 +222,20 @@ func (p *Proxy) syncIngressNAT() {
 		}
 
 		vmToUpdate := vm.DeepCopy()
-		vmToUpdate.Status.Network.IngressRoutes = append(vmToUpdate.Status.Network.IngressRoutes, v1alpha1.IngressRoute{
-			NodeName: nodeName,
-			Ready:    !encounteredError,
-		})
+		var found = false
+		for i := range vmToUpdate.Status.Network.IngressRoutes {
+			if vmToUpdate.Status.Network.IngressRoutes[i].NodeName == nodeName {
+				vmToUpdate.Status.Network.IngressRoutes[i].Ready = !encounteredError
+				found = true
+				break
+			}
+		}
+		if !found {
+			vmToUpdate.Status.Network.IngressRoutes = append(vmToUpdate.Status.Network.IngressRoutes, v1alpha1.IngressRoute{
+				NodeName: nodeName,
+				Ready:    !encounteredError,
+			})
+		}
 		p.QvmCli.Qvms(vm.Namespace).UpdateStatus(context.TODO(), vmToUpdate, metav1.UpdateOptions{})
 	}
 }
