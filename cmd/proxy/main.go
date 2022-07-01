@@ -1,12 +1,16 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/base32"
+	"bytes"
+	"flag"
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"time"
+
+	"crypto/sha256"
+	"encoding/base32"
 
 	"qiniu.com/qvirt/apis/qvm/v1alpha1"
 	qvirtinformers "qiniu.com/qvirt/client/informers/externalversions"
@@ -30,6 +34,12 @@ const (
 	qvirtMappingChain iptableutil.Chain = "QVIRT-MAPPING"
 )
 
+var doDelete bool
+
+func init() {
+	flag.BoolVar(&doDelete, "delete", false, "whether do cleanup IPTable rules")
+}
+
 type Proxy struct {
 	QvmLister  qvirtlister.QvmLister
 	NodeGetter func(name string) (*corev1.Node, error)
@@ -39,8 +49,20 @@ type Proxy struct {
 }
 
 func main() {
+	flag.Parse()
 	ctx := controllerruntime.SetupSignalHandler()
-	var pxy = &Proxy{}
+	var pxy = &Proxy{iptables: iptableutil.New(exec.New(), iptableutil.ProtocolIPv4)}
+
+	if doDelete {
+		log.Println("deleting IPTable rules...")
+		encounteredError := pxy.CleanupLeftovers()
+		if encounteredError {
+			log.Println("cleanup IPTable rules failed")
+		} else {
+			log.Println("cleanup IPTable rules success")
+		}
+		return
+	}
 
 	kubeconfig := config.GetConfigOrDie()
 
@@ -67,9 +89,6 @@ func main() {
 			pxy.SyncRules()
 		},
 	})
-
-	execer := exec.New()
-	pxy.iptables = iptableutil.New(execer, iptableutil.ProtocolIPv4)
 
 	go qvmInf.Run(ctx.Done())
 	go pxy.Run(ctx.Done())
@@ -143,43 +162,87 @@ func (p *Proxy) syncIngressNAT() {
 	}
 
 	for _, vm := range targets {
-		var internalNodeIP string
+		var internalPodIP string
 		var externalIPs = vm.Spec.FloatingIPs
 
-		node, err := p.NodeGetter(vm.Status.NodeName)
-		if err != nil {
-			log.Printf("err get node %s: %v", node, err)
-			continue
+		if len(vm.Status.Network.Interfaces) > 0 {
+			internalPodIP = vm.Status.Network.Interfaces[0].IP
 		}
-		for i := range node.Status.Addresses {
-			if node.Status.Addresses[i].Type == "InternalIP" {
-				internalNodeIP = node.Status.Addresses[i].Address
-				break
-			}
-		}
-		if internalNodeIP == "" {
-			log.Printf("unexpected node %s don't have internal IP address", node)
+
+		if internalPodIP == "" {
+			log.Printf("unexpected, vm %s/%s don't have IP address", vm.Namespace, vm.Name)
 			continue
 		}
 
 		for _, eip := range externalIPs {
-			mpChain := ipMappingChain(eip, internalNodeIP)
+			mpChain := ipMappingChain(eip, internalPodIP)
 			ok, err := p.iptables.EnsureChain(iptableutil.TableNAT, mpChain)
 			log.Printf("ensure DNAT rule/%s for vm %s/%s, ok: %v, err: %v\n", mpChain, vm.Namespace, vm.Name, ok, err)
 
 			log.Printf("ensure nat rules for vm %s/%s\n", vm.Namespace, vm.Name)
-			log.Printf("try add entry %s to %s...\n", eip, qvirtMappingChain)
+			log.Printf("firstly set KUBE-MARK-MASK for SNAT, %s/%s\n", vm.Namespace, vm.Name)
 			ok, err = p.iptables.EnsureRule(iptableutil.Append, iptableutil.TableNAT, qvirtMappingChain,
-				"-m", "comment", "--comment", fmt.Sprintf(`"%s/%s external IP"`, vm.Namespace, vm.Name),
+				"-m", "comment", "--comment", fmt.Sprintf("%s/%s external IP", vm.Namespace, vm.Name),
+				"-d", net.ParseIP(eip).String(),
+				"!", "-s", "10.233.64.0/18",
+				"-j", "KUBE-MARK-MASQ",
+			)
+			log.Printf("ret for set KUBE-MARK-MASK for %s/%s, ok: %v, err: %v\n", vm.Namespace, vm.Name, ok, err)
+			log.Printf("set jump QVIRT-MP-XXX for DNAT %s/%s\n", vm.Namespace, vm.Name)
+			ok, err = p.iptables.EnsureRule(iptableutil.Append, iptableutil.TableNAT, qvirtMappingChain,
+				"-m", "comment", "--comment", fmt.Sprintf("%s/%s external IP", vm.Namespace, vm.Name),
 				"-d", net.ParseIP(eip).String(),
 				"-j", string(mpChain),
 			)
-			log.Printf("ret for %s to node/%s, ok:%v, err:%v", eip, internalNodeIP, ok, err)
-			log.Printf("try add DNAT from %s to %s...\n", eip, internalNodeIP)
+			log.Printf("ret for %s to pod/%s, ok:%v, err:%v", eip, internalPodIP, ok, err)
+			log.Printf("try add DNAT from %s to %s...\n", eip, internalPodIP)
 			ok, err = p.iptables.EnsureRule(iptableutil.Append, iptableutil.TableNAT, mpChain,
-				"-j", "DNAT", "--to-destination", net.ParseIP(internalNodeIP).String(),
+				"-j", "DNAT", "--to-destination", net.ParseIP(internalPodIP).String(),
 			)
-			log.Printf("ret for DNAT %s to node/%s, ok:%v, err:%v", eip, internalNodeIP, ok, err)
+			log.Printf("ret for DNAT %s to pod/%s, ok:%v, err:%v", eip, internalPodIP, ok, err)
 		}
 	}
+}
+
+func (p *Proxy) CleanupLeftovers() (encounteredError bool) {
+	var err error
+	for _, jump := range iptablesJumpChains {
+		args := append(jump.extraArgs,
+			"-m", "comment", "--comment", jump.comment,
+			"-j", string(jump.dstChain),
+		)
+		if err = p.iptables.DeleteRule(jump.table, jump.srcChain, args...); err != nil {
+			if !iptableutil.IsNotFoundError(err) {
+				log.Printf("Error removing pure-iptables proxy rule: %v", err)
+				encounteredError = true
+			}
+		}
+	}
+
+	// Flush and remove all of our "-t nat" chains.
+	iptablesData := bytes.NewBuffer(nil)
+	if err := p.iptables.SaveInto(iptableutil.TableNAT, iptablesData); err != nil {
+		klog.ErrorS(err, "Failed to execute iptables-save", "table", iptableutil.TableNAT)
+		encounteredError = true
+	} else {
+		existingNATChains := iptableutil.GetChainLines(iptableutil.TableNAT, iptablesData.Bytes())
+		if _, found := existingNATChains[qvirtMappingChain]; found {
+			err = p.iptables.FlushChain(iptableutil.TableNAT, qvirtMappingChain)
+			log.Println(err)
+			err = p.iptables.DeleteChain(iptableutil.TableNAT, qvirtMappingChain)
+			log.Println(err)
+		}
+
+		// Hunt for QVIRT-MP-XXX chains.
+		for chain := range existingNATChains {
+			chainString := string(chain)
+			if strings.HasPrefix(chainString, ipMappingChainPrefix) {
+				err = p.iptables.FlushChain(iptableutil.TableNAT, chain)
+				log.Println(err)
+				err = p.iptables.DeleteChain(iptableutil.TableNAT, chain)
+				log.Println(err)
+			}
+		}
+	}
+	return
 }

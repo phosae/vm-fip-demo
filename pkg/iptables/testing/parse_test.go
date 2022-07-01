@@ -24,8 +24,8 @@ import (
 
 	"github.com/lithammer/dedent"
 
-	"k8s.io/kubernetes/pkg/util/iptables"
 	utilpointer "k8s.io/utils/pointer"
+	"qiniu.com/qvirt/pkg/iptables"
 )
 
 func TestParseRule(t *testing.T) {

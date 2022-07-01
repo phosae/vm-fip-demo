@@ -23,6 +23,10 @@ spec:
       jsonPath: .status.phase
       name: PHASE
       type: string
+    - description: IP Address
+      jsonPath: .status.network.interfaces[0].ipAddress
+      name: IP
+      type: string
     - description: Node Name
       jsonPath: .status.nodeName
       name: NODENAME
@@ -3767,6 +3771,35 @@ spec:
                       required:
                       - nodeName
                       - ready
+                      type: object
+                    type: array
+                  interfaces:
+                    items:
+                      properties:
+                        infoSource:
+                          description: 'Specifies the origin of the interface data
+                            collected. values: domain, guest-agent, or both'
+                          type: string
+                        interfaceName:
+                          description: The interface name inside the Virtual Machine
+                          type: string
+                        ipAddress:
+                          description: IP address of a Virtual Machine interface.
+                            It is always the first item of IPs
+                          type: string
+                        ipAddresses:
+                          description: List of all IP addresses of a Virtual Machine
+                            interface
+                          items:
+                            type: string
+                          type: array
+                        mac:
+                          description: Hardware address of a Virtual Machine interface
+                          type: string
+                        name:
+                          description: Name of the interface, corresponds to name
+                            of the network assigned to the interface
+                          type: string
                       type: object
                     type: array
                 type: object

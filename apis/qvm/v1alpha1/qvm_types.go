@@ -23,13 +23,14 @@ type IngressRoute struct {
 }
 
 type QvmNetworkStatus struct {
-	IngressRoutes []IngressRoute `json:"ingressRoutes,omitempty"`
+	Interfaces    []virtv1.VirtualMachineInstanceNetworkInterface `json:"interfaces,omitempty"`
+	IngressRoutes []IngressRoute                                  `json:"ingressRoutes,omitempty"`
 }
 
 // QvmStatus defines the observed state of Qvm
 type QvmStatus struct {
-	NodeName string            `json:"nodeName,omitempty"`
 	Phase    string            `json:"phase,omitempty"`
+	NodeName string            `json:"nodeName,omitempty"`
 	Network  *QvmNetworkStatus `json:"network,omitempty"`
 }
 
@@ -38,6 +39,7 @@ type QvmStatus struct {
 // +genclient
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
 // +kubebuilder:printcolumn:name="PHASE",type="string",JSONPath=".status.phase",description="Qvm Phase"
+// +kubebuilder:printcolumn:name="IP",type="string",JSONPath=".status.network.interfaces[0].ipAddress",description="IP Address"
 // +kubebuilder:printcolumn:name="NODENAME",type="string",JSONPath=".status.nodeName",description="Node Name"
 // +kubebuilder:printcolumn:name="EXTERNAL-IPs",type="string",JSONPath=".spec.floatingIPs",description="Floating IPs"
 
